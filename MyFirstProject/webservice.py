@@ -52,7 +52,7 @@ def func():
   "response": {
     "outputSpeech": {
       "type": "PlainText",
-      "text": "This is a test"
+      "text": "This is a test. git update"
     },
     "card": {
       "type": "Simple",
