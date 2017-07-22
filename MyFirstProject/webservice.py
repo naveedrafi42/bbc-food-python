@@ -18,6 +18,8 @@ mmonth_number_to_name = {
     12:'december'
 }
 
+path_to_pem_file = ''
+
 app=Flask(__name__)
 
 # FoodIDController
@@ -27,7 +29,7 @@ app=Flask(__name__)
 # GetRecipe Controller
 def getRecipes(ingredient_name):
     url = 'https://api.live.bbc.co.uk/food/recipes/by/ingredient/%s/season/%s' % (ingredient_name, mmonth_number_to_name[datetime.now().month])
-    r = requests.get( url, verify='C:/Users/Naveed/Downloads/ca.pem' )
+    r = requests.get( url, verify=path_to_pem_file )
     print(r.text)
 
 @app.route("/process",methods=['POST'])
@@ -50,7 +52,7 @@ def func():
   "response": {
     "outputSpeech": {
       "type": "PlainText",
-      "text": "Chootiya"
+      "text": "This is a test"
     },
     "card": {
       "type": "Simple",
