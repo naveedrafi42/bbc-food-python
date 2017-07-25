@@ -1,82 +1,89 @@
-from flask import Flask, request
+from flask import Flask
+from flask_ask import Ask, statement, question, session
 import json
-from datetime import datetime
 import requests
+import time
+import unidecode
+from bs4 import BeautifulSoup
+import utils
+from topics import *
+from my_topics import TOPIC_DIC
+#!/usr/bin/env python
+# -*- encoding: utf8 -*-
 
-mmonth_number_to_name = {
-    1 : 'january',
-    2:'febuary',
-    3:'march',
-    4:'april',
-    5:'may',
-    6:'june',
-    7:'july',
-    8:'august',
-    9:'september',
-    10:'october',
-    11:'november',
-    12:'december'
-}
+CERT="/Users/mikroe01/certificates/certificate.pem"
 
-path_to_pem_file = ''
+app = Flask(__name__)
+ask = Ask(app, "/bbc_sports_reader")
 
-app=Flask(__name__)
-
-# FoodIDController
-# def getFoodId(ingredient_name):
-#     r = requests.get()
-
-# GetRecipe Controller
-def getRecipes(ingredient_name):
-    url = 'https://api.live.bbc.co.uk/food/recipes/by/ingredient/%s/season/%s' % (ingredient_name, mmonth_number_to_name[datetime.now().month])
-    r = requests.get( url, verify=path_to_pem_file )
-    print(r.text)
-
-@app.route("/process",methods=['POST'])
-def func():
-
-    #extract intent message and relevant detail
-    #call relevant controller and querry bbc
-    #receive and store response for user consumption
-    #return data wrapped in natural language
-
-    output_json = {
-  "version": "1.0",
-  "sessionAttributes": {
-    "supportedHoriscopePeriods": {
-      "daily": True,
-      "weekly": False,
-      "monthly": False
-    }
-  },
-  "response": {
-    "outputSpeech": {
-      "type": "PlainText",
-      "text": "This is a test. git update"
-    },
-    "card": {
-      "type": "Simple",
-      "title": "Horoscope",
-      "content": "Today will provide you a new learning opportunity.  Stick with it and the possibilities will be endless."
-    },
-    "reprompt": {
-      "outputSpeech": {
-        "type": "PlainText",
-        "text": "Can I help you with anything else?"
-      }
-    },
-    "shouldEndSession": False
-  }
-}
-    input_json = request.get_json()
-    intent_name = input_json['request']['intent']['name']
-    ingredient_name = input_json['request']['intent']['slots']["Ingredients"]['value']
-
-    if intent_name == 'GetRecipes':
-        something = getRecipes(ingredient_name)
-
-    return json.dumps(output_json)
+def get_sports_headlines_by_topic(topic):
+    guid = TOPIC_DIC[topic]
+    query = "https://morph.api.bbci.co.uk/data/bbc-morph-cs-sport-headlines-by-guid/cworkFormat/TextualFormat/cworkType/cwork:NewsItem,cwork:LiveEventPage/guid/%s/limit/3" % guid
+    print query
+    headers = {"Content-Type": "application/json"}
+    response = utils.http_get(endpoint=query, params=None, headers=headers, ssl_cert=CERT)
+    data = json.loads(response)
+    briefs = ""
+    for headline in data['headlines']:
+        brief = (headline['title'], '... ', headline['summary'])
+        briefs += '... '.join(brief)
+    print briefs
+    return briefs
 
 
-if __name__=="__main__":
-    app.run(host="127.0.0.1", port=8880, debug=True)
+def get_sports_headlines():
+    url = "http://feeds.bbci.co.uk/sport/rss.xml"
+    params={"edition" : "uk"}
+    headers = {"Content-Type": "application/xml"}
+    result_set = utils.http_get(endpoint=url, params=params, headers=headers)
+    # print result_set['title']
+    parser = BeautifulSoup(result_set, "html.parser")
+    briefs = ""
+    for item in parser.find_all('item'):
+        title = item.find_all('title')[0].text
+        description = item.find_all('description')[0].text
+        brief = (title, '... ', description)
+        briefs += '... '.join(brief)
+    return briefs
+
+@app.route('/')
+def homepage():
+    return "hi there, how ya doin?"
+
+@ask.launch
+def start_skill():
+    welcome_message = 'Hello there, would you like the BBC Sport headlines or headlines by Topic?'
+    return question(welcome_message)
+
+@ask.intent("HeadlinesIntent")
+def share_headlines():
+    headlines = get_sports_headlines()
+    headline_msg = 'The current BBC Sport headlines are {}'.format(headlines)
+    return statement(headline_msg)
+
+@ask.intent("HeadlinesByTopicIntent")
+def share_headlines():
+    msg = 'Ok what is your topic?'
+    return question(msg)
+
+@ask.intent("MyTopicIsIntent")
+def share_headlines_by_topic(topic):
+    session.attributes['topic'] = topic
+    headlines = get_sports_headlines_by_topic(topic.lower())
+    headline_msg = 'The current BBC Sport headlines for {} are {}'.format(topic, headlines)
+    return statement(headline_msg)
+
+@ask.intent("WhatsMyTopicIntent")
+def share_headlines_by_topic():
+    session.attributes['topics'] = TOPICS
+    msg = 'Your BBC Sport topics are {}. What is your topic?'.format(TOPICS)
+    return question(msg)
+
+
+@ask.intent("NoIntent")
+def no_intent():
+    bye_text = 'Sorry I cannot understand what you mean'
+    return statement(bye_text)
+    
+if __name__ == '__main__':
+    app.run(debug=True)
