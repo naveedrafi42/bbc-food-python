@@ -3,22 +3,22 @@ import json
 from datetime import datetime
 import requests
 
-mmonth_number_to_name = {
-    1 : 'january',
-    2:'febuary',
-    3:'march',
-    4:'april',
-    5:'may',
-    6:'june',
-    7:'july',
-    8:'august',
-    9:'september',
-    10:'october',
-    11:'november',
-    12:'december'
+month_number_to_name = {
+    1: 'january',
+    2: 'febuary',
+    3: 'march',
+    4: 'april',
+    5: 'may',
+    6: 'june',
+    7: 'july',
+    8: 'august',
+    9: 'september',
+    10: 'october',
+    11: 'november',
+    12: 'december'
 }
 
-path_to_pem_file = ''
+path_to_pem_file = 'C:/Users/Naveed/Desktop/CA/nav_bbc_cert.pem'
 
 app=Flask(__name__)
 
@@ -28,9 +28,10 @@ app=Flask(__name__)
 
 # GetRecipe Controller
 def getRecipes(ingredient_name):
-    url = 'https://api.live.bbc.co.uk/food/recipes/by/ingredient/%s/season/%s' % (ingredient_name, mmonth_number_to_name[datetime.now().month])
-    r = requests.get( url, verify=path_to_pem_file )
+    url = 'https://api.live.bbc.co.uk/food/recipes/by/ingredient/%s/season/%s' % (ingredient_name, month_number_to_name[datetime.now().month])
+    r = requests.get(url, cert=path_to_pem_file, verify=False)
     print(r.text)
+
 
 @app.route("/process",methods=['POST'])
 def func():
