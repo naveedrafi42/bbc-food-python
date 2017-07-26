@@ -16,8 +16,7 @@ def launch():
 
 @ask.intent('GetRecipes')
 def recipe_handler(Ingredients):
-    print(request.user.userId)
-    speech_text = 'Hi %s' % Ingredients
+    speech_text = 'UserID: {}'.format(session.user.userId)
     return statement(speech_text).simple_card('Recipes', speech_text)
 
 @ask.intent('MeetNGreet')
