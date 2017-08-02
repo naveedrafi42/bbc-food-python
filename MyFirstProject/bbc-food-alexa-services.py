@@ -39,6 +39,22 @@ def recipe_handler(Ingredients):
 def configuration_handler():
     return statement('Function not complete')
 
+@ask.intent('GetPreferences')
+def get_preferences():
+    uId = session.user.userId
+    queryStatement = "SELECT UserPreference FROM bbc_food_alexa_db.user_preferences WHERE UserAlexaId = '%s'" % uId
+    try:
+        cur = conn.cursor()
+        cur.execute(queryStatement)
+        res = cur.fetchall()
+        responseString = 'Your list includes: '
+        for row in res:
+            responseString += (row[0] + ", ")
+            # how to add "and" for last ingredient"
+    except:
+        return statement('There was an error fetching your list')
+    return statement(responseString)
+
 @ask.intent('AddPreference')
 def add_preference(Preference):
     if session.application.applicationId != "amzn1.ask.skill.d637afaa-2848-4a19-8654-08459fe0d61d":
@@ -49,7 +65,7 @@ def add_preference(Preference):
     if insertPreference(session.user.userId,Preference)==False:
         return statement("Sorry, there was a problem adding your preference. %s is most likely already added to your list" %Preference)
 
-    return statement('Okay, %s added. Would you like to add another preference?' % (Preference) )
+    return question('Okay, %s added. Would you like to add another preference?' % (Preference) )
 
 
 @ask.intent('AMAZON.HelpIntent')
