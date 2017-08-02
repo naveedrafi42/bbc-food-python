@@ -1,16 +1,32 @@
 import logging
+import boto3
 from flask import Flask
 from flask_ask import Ask, request, session, question, statement
+import pymysql
+
 
 
 app = Flask(__name__)
 ask = Ask(app, "/")
-#logging.getLogger('flask_ask').setLevel(logging.DEBUG)
+logging.getLogger('flask_ask').setLevel(logging.DEBUG)
 
+conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='Rockdhaba', db='bbc_food_alexa_db')
+
+def insertPreference(userId, Preference):
+    # add user pref against userID: Use MySql for preferences and dynamo for recipes
+    cur = conn.cursor()
+    insertStatement = "INSERT INTO `bbc_food_alexa_db`.`user_preferences` (`UserAlexaId`, `UserPreference`) VALUES ('%s', '%s')" % (userId, Preference)
+    try:
+        cur.execute(insertStatement)
+        conn.commit()
+    except:
+        conn.rollback()
+        return False
+    return True
 
 @ask.launch
 def launch():
-    speech_text = 'Welcome to the BBC food skills. Here, I can help you get your favourite recipes.'
+    speech_text = 'Hey there, looks like we have a hunger emergency. Would you like some recommendations or add your favourite ingredients to my list?'
     return question(speech_text).reprompt(speech_text).simple_card('Introduction', speech_text)
 
 
@@ -25,9 +41,15 @@ def configuration_handler():
 
 @ask.intent('AddPreference')
 def add_preference(Preference):
-    userId = session.user.userId
-    #add user pref against userID
-    return statement('Function not complete')
+    if session.application.applicationId != "amzn1.ask.skill.d637afaa-2848-4a19-8654-08459fe0d61d":
+        raise ValueError("Invalid Application ID")
+    print(Preference)
+    if str(Preference) == 'None':
+        return question('What would you like to add?')
+    if insertPreference(session.user.userId,Preference)==False:
+        return statement("Sorry, there was a problem adding your preference. %s is most likely already added to your list" %Preference)
+
+    return statement('Okay, %s added. Would you like to add another preference?' % (Preference) )
 
 
 @ask.intent('AMAZON.HelpIntent')

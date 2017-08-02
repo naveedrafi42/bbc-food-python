@@ -4,10 +4,10 @@ import json
 import requests
 import time
 import unidecode
-from bs4 import BeautifulSoup
-import utils
-from topics import *
-from my_topics import TOPIC_DIC
+#from bs4 import BeautifulSoup
+#import utils
+#from topics import *
+#from my_topics import TOPIC_DIC
 #!/usr/bin/env python
 # -*- encoding: utf8 -*-
 
