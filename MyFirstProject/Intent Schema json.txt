@@ -1,0 +1,34 @@
+{
+  "intents": [
+    {
+      "slots": [
+        {
+          "name": "Preference",
+          "type": "AMAZON.Food"
+        }
+      ],
+      "intent": "AddPreference"
+    },
+    {
+      "intent": "AMAZON.CancelIntent"
+    },
+    {
+      "intent": "AMAZON.HelpIntent"
+    },
+    {
+      "intent": "AMAZON.StopIntent"
+    },
+    {
+      "intent": "GetPreferences"
+    },
+    {
+      "slots": [
+        {
+          "name": "Ingredients",
+          "type": "AMAZON.Food"
+        }
+      ],
+      "intent": "GetRecipes"
+    }
+  ]
+}
