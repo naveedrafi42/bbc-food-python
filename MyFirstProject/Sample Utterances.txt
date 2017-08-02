@@ -1,0 +1,15 @@
+AddPreference add favorite ingredients
+AddPreference add {Preference} to my favorite ingredients
+AddPreference i like {Preference} 
+AddPreference I would like to add my preferred ingredients
+AddPreference I would like to add {Preference} to my preferred ingredients
+AddPreference Alexa ask bbc food to add {Preference} to my list
+AddPreference Alexa ask bbc food to add {Preference} to my favorites list
+AddPreference Alexa ask bbc food to add {Preference} to my BBC list
+AddPreference add {Preference}
+GetPreferences Alexa list preferences
+GetPreferences list my preferred ingredients
+GetRecipes what can I cook with {Ingredients}
+GetRecipes suggest something with {Ingredients}
+GetRecipes recommend something with {Ingredients}
+GetRecipes what can i make with {Ingredients}
