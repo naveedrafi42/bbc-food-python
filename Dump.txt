@@ -1,0 +1,13 @@
+ # conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='Rockdhaba', db='bbc_food_alexa_db')
+ # cur = conn.cursor()
+# cur.execute("SELECT temp FROM bbc_food_alexa_db.user_preferences")
+    # print(cur.description)
+    # for row in cur:
+    #    print(row)
+    # cur.close()
+    # conn.close()
+
+
+    #ingredients = ingredients for ingredient in [item['ingredients'] for item in recipe_json[stages] for ingredient in ]
+    #stage_ingredients_text = [item['text'] for sublist in [stage['ingredients'] for stage in recipe_json['stages']] for item in sublist]
+    #stage_ingredients_title = [ingredient['title'] for sublist in [stage['ingredients'] for stage in recipe_json['stages']]
