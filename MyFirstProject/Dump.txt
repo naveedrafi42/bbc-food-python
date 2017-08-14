@@ -6,3 +6,8 @@
     #    print(row)
     # cur.close()
     # conn.close()
+
+
+    #ingredients = ingredients for ingredient in [item['ingredients'] for item in recipe_json[stages] for ingredient in ]
+    #stage_ingredients_text = [item['text'] for sublist in [stage['ingredients'] for stage in recipe_json['stages']] for item in sublist]
+    #stage_ingredients_title = [ingredient['title'] for sublist in [stage['ingredients'] for stage in recipe_json['stages']]

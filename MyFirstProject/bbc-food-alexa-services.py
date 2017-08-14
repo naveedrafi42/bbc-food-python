@@ -1,10 +1,28 @@
 import logging
-import boto3
+import json
 from flask import Flask
 from flask_ask import Ask, request, session, question, statement
 import pymysql
+import requests
+import inflection
+from datetime import datetime
 
+path_to_pem_file = 'C:/Users/Naveed/Desktop/CA/nav_bbc_cert.pem'
 
+month_number_to_name = {
+    1: 'january',
+    2: 'febuary',
+    3: 'march',
+    4: 'april',
+    5: 'may',
+    6: 'june',
+    7: 'july',
+    8: 'august',
+    9: 'september',
+    10: 'october',
+    11: 'november',
+    12: 'december'
+}
 
 app = Flask(__name__)
 ask = Ask(app, "/")
@@ -24,16 +42,130 @@ def insertPreference(userId, Preference):
         return False
     return True
 
+def ingredient_text_executor():
+    session.attributes['list_pointer'] = 0
+    session.attributes['state'] = 'recipe_ingredient_quantities'
+    return question('Okay, lets do this. I will go over the ingredient quantities one by one. %s. Say next to proceed' %
+                    (session.attributes['ingredient_quantities'][0])).simple_card(session.attributes['ingredient_quantities'][0])
+
+
 @ask.launch
 def launch():
+    # check if user was in the middle of something
     speech_text = 'Hey there, looks like we have a hunger emergency. Would you like some recommendations or add your favourite ingredients to my list?'
     return question(speech_text).reprompt(speech_text).simple_card('Introduction', speech_text)
 
 
 @ask.intent('GetRecipes')
 def recipe_handler(Ingredients):
-    speech_text = 'UserID: {}'.format(session.user.userId)
-    return statement(speech_text).simple_card('Recipes', speech_text)
+    if str(Ingredients) == 'None':
+        return question("Please tell me a base ingredient for your recommendation")
+    ingredient = inflection.singularize(Ingredients)
+    url = 'https://api.live.bbc.co.uk/food/search?q="%s"' % ingredient
+    r = requests.get(url, cert=path_to_pem_file, verify=False)
+    bbc_json_data = r.json()
+
+    #bbcData = str(json.loads(r))
+    recipes_returned = bbc_json_data['recipes']
+    if len(recipes_returned) == 0:
+        # handle case of no recipes returned
+        return statement("Sorry, I couldn't find any %s recipes. Please try searching with a different ingredient" % ingredient)
+    else:
+        all_recipes = [a['title'] for a in recipes_returned]
+        all_recipe_ids = [a['id'] for a in recipes_returned]
+        #a = list_iterator(all_recipes, Ingredients)
+        session.attributes['recipes'] = all_recipes
+        session.attributes['recipe_ids'] = all_recipe_ids
+        session.attributes['state'] = 'recipe_navigation'
+        session.attributes['list_pointer'] = 0
+        return question("I've found many recipes. Would you like %s. Say next for another recipe or 'go' for steps and ingredients" % all_recipes[0])
+
+
+def get_all_substeps(chunky_steps):
+    to_return = []
+    for ls in chunky_steps:
+        to_return.extend(ls)
+    return to_return
+
+@ask.intent('ExecuteRecipe')
+def recipe_executor():
+    session.attributes['state'] = 'recipe_ingredients'
+    recipe_id = session.attributes['recipe_ids'][session.attributes['list_pointer']]
+    # print(recipe_id) get recipe from recipe controller
+    url = 'https://api.live.bbc.co.uk/food/recipes/%s' % recipe_id
+    r = requests.get(url, cert=path_to_pem_file, verify=False)
+    recipe_json = r.json()
+    # session.attributes['entire_recipe'] = recipe_json
+    all_stages = [a['title'] for a in recipe_json['stages']]
+    ingredients = [ingredient for sublist in [stage['ingredients'] for stage in recipe_json['stages']] for ingredient in sublist]
+    ingredients_texts = [ingredient['text'] for ingredient in ingredients]
+    ingredients_titles = list(
+        set(
+            [food['title'] for sublist in [ingredient['foods'] for ingredient in ingredients]
+             for food in sublist]
+        )
+    )
+    all_steps = [a['text'] for a in recipe_json['methods']]
+    temp_steps = [a.split('. ')for a in all_steps if len(a) > 1]
+    session.attributes['ingredients'] = ingredients_titles
+    session.attributes['recipe_stages'] = all_stages
+    session.attributes['ingredient_quantities'] = ingredients_texts
+    session.attributes['recipe_steps'] = [x for x in get_all_substeps(temp_steps) if len(x) > 1]
+    session.attributes['list_pointer'] = 0
+
+    # start with ingredients (all in one)
+    return question('Great, here are the ingredients you need. %s. To proceed to their quantities please say next' % ingredients_titles)
+    # ingredients with quantities (one by one)
+    # recipe steps
+
+    #return question('Okay, lets do this. I will go over the steps one by one. %s. Say next for subsequent steps' %
+     #               (all_steps[0])).simple_card(all_steps[0])
+
+@ask.intent('AMAZON.NextIntent')
+def next():
+    # create a switch-case statement
+    if session.attributes['state'] == 'recipe_navigation':
+        session.attributes['list_pointer'] = session.attributes['list_pointer']+1
+        return question("Okay, Do you want %s instead? Say next if you want something else or go to get started" %
+                        session.attributes['recipes'][session.attributes['list_pointer']])\
+            .simple_card(session.attributes['recipes'][session.attributes['list_pointer']])
+    if session.attributes['state'] == 'recipe_steps':
+        session.attributes['list_pointer'] = session.attributes['list_pointer'] + 1
+        return question("%s Please say next when you are done." %
+                        session.attributes['recipe_steps'][session.attributes['list_pointer']])\
+            .simple_card(session.attributes['recipe_steps'][session.attributes['list_pointer']])
+    if session.attributes['state'] == 'recipe_ingredients':
+        ingredient_text_executor()
+    if session.attributes['state'] == 'recipe_ingredient_quantities':
+        session.attributes['list_pointer'] = session.attributes['list_pointer'] + 1
+        return question('%s. Say next for subsequent ingredients' %
+                        (session.attributes['ingredient_quantities'][session.attributes['list_pointer']])).simple_card(
+                            session.attributes['ingredient_quantities'][session.attributes['list_pointer']])
+
+
+@ask.intent('AMAZON.RepeatIntent')
+def repeat():
+    if (session.attributes['state'] == 'recipe_navigation'):
+        return question("%s. Say next if you want something else or go to get started" %
+                        session.attributes['recipes'][session.attributes['list_pointer']])\
+            .simple_card(session.attributes['recipes'][session.attributes['list_pointer']])
+    if (session.attributes['state'] == 'recipe_steps'):
+        return question("%s. Please say next when you are done." %
+                        session.attributes['recipe_steps'][session.attributes['list_pointer']])\
+            .simple_card(session.attributes['recipe_steps'][session.attributes['list_pointer']])
+
+@ask.intent('AMAZON.PreviousIntent')
+def previous():
+    if (session.attributes['state'] == 'recipe_navigation'):
+        session.attributes['list_pointer'] = session.attributes['list_pointer'] - 1
+        return question("%s. Say next if you want something else or go to get started" %
+                        session.attributes['recipes'][session.attributes['list_pointer']])\
+            .simple_card(session.attributes['recipes'][session.attributes['list_pointer']])
+    if (session.attributes['state'] == 'recipe_steps'):
+        session.attributes['list_pointer'] = session.attributes['list_pointer'] - 1
+        return question("%s. Please say next when you are done." %
+                        session.attributes['recipe_steps'][session.attributes['list_pointer']])\
+            .simple_card(session.attributes['recipe_steps'][session.attributes['list_pointer']])
 
 @ask.intent('MeetNGreet')
 def configuration_handler():
@@ -70,7 +202,7 @@ def add_preference(Preference):
 
 @ask.intent('AMAZON.HelpIntent')
 def help():
-    speech_text = 'Tell me your favourite ingredients and I will get you recipes you love!'
+    speech_text = 'Tell me your favourite ingredients and I will get you recipes you love! You can also ask for a recipe by ingredient.'
     return question(speech_text).reprompt(speech_text).simple_card('Help', speech_text)
 
 
