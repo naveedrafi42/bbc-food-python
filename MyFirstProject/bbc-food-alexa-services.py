@@ -45,8 +45,14 @@ def insertPreference(userId, Preference):
 def ingredient_text_executor():
     session.attributes['list_pointer'] = 0
     session.attributes['state'] = 'recipe_ingredient_quantities'
-    return question('Okay, lets do this. I will go over the ingredient quantities one by one. %s. Say next to proceed' %
-                    (session.attributes['ingredient_quantities'][0])).simple_card(session.attributes['ingredient_quantities'][0])
+    return ('Okay, lets do this. I will go over the ingredient quantities one by one. %s. Say next to proceed' %
+            (session.attributes['ingredient_quantities'][0]))
+
+def recipe_steps_executor():
+    session.attributes['list_pointer'] = 0
+    session.attributes['state'] = 'recipe_steps'
+    return ('Awesome. Those were all the ingredients. Lets start cooking step by step. First %s. Say next for following steps' %
+            session.attributes['recipe_steps'][0])
 
 
 @ask.launch
@@ -60,8 +66,8 @@ def launch():
 def recipe_handler(Ingredients):
     if str(Ingredients) == 'None':
         return question("Please tell me a base ingredient for your recommendation")
-    ingredient = inflection.singularize(Ingredients)
-    url = 'https://api.live.bbc.co.uk/food/search?q="%s"' % ingredient
+    # ingredient = inflection.singularize(Ingredients)
+    url = 'https://api.live.bbc.co.uk/food/search?q="%s"' % Ingredients
     r = requests.get(url, cert=path_to_pem_file, verify=False)
     bbc_json_data = r.json()
 
@@ -69,11 +75,12 @@ def recipe_handler(Ingredients):
     recipes_returned = bbc_json_data['recipes']
     if len(recipes_returned) == 0:
         # handle case of no recipes returned
-        return statement("Sorry, I couldn't find any %s recipes. Please try searching with a different ingredient" % ingredient)
+        return statement("Sorry, I couldn't find any %s recipes. Please try searching with a different ingredient" % Ingredients)
     else:
         all_recipes = [a['title'] for a in recipes_returned]
         all_recipe_ids = [a['id'] for a in recipes_returned]
         #a = list_iterator(all_recipes, Ingredients)
+        session.attributes['search_term'] = Ingredients
         session.attributes['recipes'] = all_recipes
         session.attributes['recipe_ids'] = all_recipe_ids
         session.attributes['state'] = 'recipe_navigation'
@@ -125,23 +132,32 @@ def recipe_executor():
 def next():
     # create a switch-case statement
     if session.attributes['state'] == 'recipe_navigation':
+        if len(session.attributes['recipes']) == session.attributes['list_pointer']+1:
+            return question('These were all the %s recipes I could find. Please search with a different base ingredient'
+                            ' for more options. Or say previous to go back' % session.attributes['search_term'])
         session.attributes['list_pointer'] = session.attributes['list_pointer']+1
         return question("Okay, Do you want %s instead? Say next if you want something else or go to get started" %
                         session.attributes['recipes'][session.attributes['list_pointer']])\
             .simple_card(session.attributes['recipes'][session.attributes['list_pointer']])
     if session.attributes['state'] == 'recipe_steps':
+        if len(session.attributes['recipe_steps']) == session.attributes['list_pointer']+1:
+            return statement('That was the last step. I hope I was useful and that you will use me not only for %s, but'
+                             'also other different recipes. Over time my features and capabilities will improve further'
+                             '. Until then, bon apetite!' % session.attributes['search_term'])
         session.attributes['list_pointer'] = session.attributes['list_pointer'] + 1
-        return question("%s Please say next when you are done." %
+        return question("%s. Please say next when you are done." %
                         session.attributes['recipe_steps'][session.attributes['list_pointer']])\
             .simple_card(session.attributes['recipe_steps'][session.attributes['list_pointer']])
     if session.attributes['state'] == 'recipe_ingredients':
-        ingredient_text_executor()
+        return question(ingredient_text_executor()).simple_card(session.attributes['ingredient_quantities'][0])
     if session.attributes['state'] == 'recipe_ingredient_quantities':
+        if len(session.attributes['ingredient_quantities']) == session.attributes['list_pointer']+1:
+            session.attributes['list_pointer'] = 0
+            return question(recipe_steps_executor()).simple_card(session.attributes['recipe_steps'][0])
         session.attributes['list_pointer'] = session.attributes['list_pointer'] + 1
         return question('%s. Say next for subsequent ingredients' %
                         (session.attributes['ingredient_quantities'][session.attributes['list_pointer']])).simple_card(
-                            session.attributes['ingredient_quantities'][session.attributes['list_pointer']])
-
+                        session.attributes['ingredient_quantities'][session.attributes['list_pointer']])
 
 @ask.intent('AMAZON.RepeatIntent')
 def repeat():
