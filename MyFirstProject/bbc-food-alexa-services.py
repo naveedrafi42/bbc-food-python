@@ -30,6 +30,57 @@ logging.getLogger('flask_ask').setLevel(logging.DEBUG)
 
 conn = pymysql.connect(host='localhost', port=3306, user='root', passwd='Rockdhaba', db='bbc_food_alexa_db')
 
+def session_exists():
+    uId = session.user.userId
+    queryStatement = "SELECT * FROM bbc_food_alexa_db.user_session WHERE UserAlexaId = '%s'" % uId
+    try:
+        cur = conn.cursor()
+        cur.execute(queryStatement)
+        res = cur.fetchall()
+        if len(res) > 0:
+            # session exists
+            return True
+        #session does not exist
+    except:
+        return statement('Sorry the skill had an internal error')
+    return False
+
+def get_session():
+    uId = session.user.userId
+    queryStatement = "SELECT SessionAttributes FROM bbc_food_alexa_db.user_session WHERE UserAlexaId = '%s'" % uId
+    prev_session = ''
+    try:
+        cur = conn.cursor()
+        cur.execute(queryStatement)
+        res = cur.fetchall()
+        for row in res:
+            prev_session = row[0]
+            # how to add "and" for last ingredient"
+    except:
+        return statement('There was an error fetching your list')
+    return prev_session
+
+def save_session(complete):
+    cur = conn.cursor()
+    # if user session exists
+    if session_exists():
+        if complete == True:
+            insertStatement = "DELETE FROM `bbc_food_alexa_db`.`user_session` WHERE `UserAlexaId`='%s'" % session.user.userId
+        else:
+            insertStatement = "UPDATE `bbc_food_alexa_db`.`user_session` SET `SessionAttributes`= '%s' WHERE `UserAlexaId`=" \
+                                "'%s'" % (json.dumps(session.attributes).replace('\'', ' a'), session.user.userId)
+    else:
+        insertStatement = "INSERT INTO `bbc_food_alexa_db`.`user_session` (`UserAlexaId`, `SessionAttributes`, " \
+                          "`SessionComplete`) VALUES ('%s', '%s',0)" % (session.user.userId,
+                                                                        json.dumps(session.attributes).replace('\'', ' a'))
+    try:
+        cur.execute(insertStatement)
+        conn.commit()
+    except:
+        conn.rollback()
+        return False
+    return True
+
 def insertPreference(userId, Preference):
     # add user pref against userID: Use MySql for preferences and dynamo for recipes
     cur = conn.cursor()
@@ -45,12 +96,14 @@ def insertPreference(userId, Preference):
 def ingredient_text_executor():
     session.attributes['list_pointer'] = 0
     session.attributes['state'] = 'recipe_ingredient_quantities'
+    save_session(False)
     return ('Okay, lets do this. I will go over the ingredient quantities one by one. %s. Say next to proceed' %
             (session.attributes['ingredient_quantities'][0]))
 
 def recipe_steps_executor():
     session.attributes['list_pointer'] = 0
     session.attributes['state'] = 'recipe_steps'
+    save_session(False)
     return ('Awesome. Those were all the ingredients. Lets start cooking step by step. First %s. Say next for following steps' %
             session.attributes['recipe_steps'][0])
 
@@ -58,6 +111,11 @@ def recipe_steps_executor():
 @ask.launch
 def launch():
     # check if user was in the middle of something
+    previous_session = get_session()
+    if len(previous_session)>1:
+        session.attributes = json.loads(previous_session)
+        return question('Welcome back, you were cooking %s. Simply say next to continue.' % session.attributes['selected_recipe'])
+
     speech_text = 'Hey there, looks like we have a hunger emergency. Would you like some recommendations or add your favourite ingredients to my list?'
     return question(speech_text).reprompt(speech_text).simple_card('Introduction', speech_text)
 
@@ -118,15 +176,12 @@ def recipe_executor():
     session.attributes['recipe_stages'] = all_stages
     session.attributes['ingredient_quantities'] = ingredients_texts
     session.attributes['recipe_steps'] = [x for x in get_all_substeps(temp_steps) if len(x) > 1]
+    session.attributes['selected_recipe'] = session.attributes['recipes'][session.attributes['list_pointer']]
     session.attributes['list_pointer'] = 0
-
+    # save selected recipe session for user
+    save_session(False)
     # start with ingredients (all in one)
     return question('Great, here are the ingredients you need. %s. To proceed to their quantities please say next' % ingredients_titles)
-    # ingredients with quantities (one by one)
-    # recipe steps
-
-    #return question('Okay, lets do this. I will go over the steps one by one. %s. Say next for subsequent steps' %
-     #               (all_steps[0])).simple_card(all_steps[0])
 
 @ask.intent('AMAZON.NextIntent')
 def next():
@@ -136,15 +191,18 @@ def next():
             return question('These were all the %s recipes I could find. Please search with a different base ingredient'
                             ' for more options. Or say previous to go back' % session.attributes['search_term'])
         session.attributes['list_pointer'] = session.attributes['list_pointer']+1
+        save_session(False)
         return question("Okay, Do you want %s instead? Say next if you want something else or go to get started" %
                         session.attributes['recipes'][session.attributes['list_pointer']])\
             .simple_card(session.attributes['recipes'][session.attributes['list_pointer']])
     if session.attributes['state'] == 'recipe_steps':
         if len(session.attributes['recipe_steps']) == session.attributes['list_pointer']+1:
+            save_session(True)  # HANDLE THIS
             return statement('That was the last step. I hope I was useful and that you will use me not only for %s, but'
                              'also other different recipes. Over time my features and capabilities will improve further'
                              '. Until then, bon apetite!' % session.attributes['search_term'])
         session.attributes['list_pointer'] = session.attributes['list_pointer'] + 1
+        save_session(False)
         return question("%s. Please say next when you are done." %
                         session.attributes['recipe_steps'][session.attributes['list_pointer']])\
             .simple_card(session.attributes['recipe_steps'][session.attributes['list_pointer']])
@@ -155,6 +213,7 @@ def next():
             session.attributes['list_pointer'] = 0
             return question(recipe_steps_executor()).simple_card(session.attributes['recipe_steps'][0])
         session.attributes['list_pointer'] = session.attributes['list_pointer'] + 1
+        save_session(False)
         return question('%s. Say next for subsequent ingredients' %
                         (session.attributes['ingredient_quantities'][session.attributes['list_pointer']])).simple_card(
                         session.attributes['ingredient_quantities'][session.attributes['list_pointer']])

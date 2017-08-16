@@ -7,9 +7,36 @@ AddPreference Alexa ask bbc food to add {Preference} to my list
 AddPreference Alexa ask bbc food to add {Preference} to my favorites list
 AddPreference Alexa ask bbc food to add {Preference} to my BBC list
 AddPreference add {Preference}
+AMAZON.NextIntent what is the next
+AMAZON.NextIntent go ahead
+AMAZON.NextIntent move on 
+AMAZON.NextIntent keep moving
+AMAZON.PreviousIntent what was the last
+AMAZON.PreviousIntent what was the previous
+AMAZON.PreviousIntent go back one step
+AMAZON.RepeatIntent say that again
+ExecuteRecipe go
+ExecuteRecipe I want to cook this recipe
+ExecuteRecipe lets cook this
+ExecuteRecipe lets do it
+ExecuteRecipe go for it
+ExecuteRecipe shoot
 GetPreferences Alexa list preferences
 GetPreferences list my preferred ingredients
 GetRecipes what can I cook with {Ingredients}
 GetRecipes suggest something with {Ingredients}
 GetRecipes recommend something with {Ingredients}
 GetRecipes what can i make with {Ingredients}
+GetRecipes I would like some recommendations
+GetRecipes i would like some {Ingredients}
+GetRecipes i want to cook some {Ingredients}
+GetRecipes give me some {Ingredients} recipes
+GetRecipes i would like some {Ingredients} recipes
+GetRecipes suggest some {Ingredients} recipes
+GetRecipes recommend some {Ingredients} recipes
+GetRecipes how to make {Ingredients}
+GetRecipes how to make some {Ingredients}
+GetRecipes how can i make a {Ingredients}
+GetRecipes how can i make an {Ingredients}
+GetRecipes how i can make a {Ingredients}
+GetRecipes how i can make an {Ingredients}

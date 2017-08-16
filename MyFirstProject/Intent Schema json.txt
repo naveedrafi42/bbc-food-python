@@ -16,7 +16,19 @@
       "intent": "AMAZON.HelpIntent"
     },
     {
+      "intent": "AMAZON.NextIntent"
+    },
+    {
+      "intent": "AMAZON.PreviousIntent"
+    },
+    {
+      "intent": "AMAZON.RepeatIntent"
+    },
+    {
       "intent": "AMAZON.StopIntent"
+    },
+    {
+      "intent": "ExecuteRecipe"
     },
     {
       "intent": "GetPreferences"
